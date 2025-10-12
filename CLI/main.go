@@ -1,11 +1,10 @@
 package main
 
-import "fmt"
-
-func Greeting() string {
-	return "Hello, TDD!"
-}
+import (
+	"os"
+)
 
 func main() {
-	fmt.Println(Greeting())
+	cmd := ParseArgs(os.Args)
+	RunCommand(cmd, os.Stdout)
 }
