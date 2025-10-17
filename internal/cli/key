@@ -1,25 +1,4 @@
-package cli
-
-import (
-	"errors"
-	"fmt"
-	"path/filepath"
-	"time"
-
-	"anima/internal/config"
-	"anima/internal/storage"
-
-	"github.com/spf13/cobra"
-)
-
-
-func TodayCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "today",
-		Short: "Create or open today's journal entry.",
-		Long: `Creates a new journal entry for the current date if one doesn't exist,
-then opens it in your default text editor for editing.`,
-        RunE: func(cmd *cobra.Command, args []string) error {
+RunE: func(cmd *cobra.Command, args []string) error {
 			// --- Setup ---
 			animaPath, err := GetAnimaPath()
 			if err != nil {
@@ -50,8 +29,3 @@ then opens it in your default text editor for editing.`,
 			// This is the only part that is specific to "today"
 			return runJournalLogic(store, location, time.Now())
 		},
-	}
-
-	return cmd
-}
-
