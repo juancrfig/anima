@@ -3,15 +3,11 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"anima/internal/config"
-	"anima/internal/storage"
-
 	"github.com/spf13/cobra"
 )
-
 
 func TodayCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -19,19 +15,15 @@ func TodayCmd() *cobra.Command {
 		Short: "Create or open today's journal entry.",
 		Long: `Creates a new journal entry for the current date if one doesn't exist,
 then opens it in your default text editor for editing.`,
-        RunE: func(cmd *cobra.Command, args []string) error {
-			// --- Setup ---
-			animaPath, err := GetAnimaPath()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// 1. Retrieve services from the context
+			services, err := GetServices(cmd.Context())
 			if err != nil {
 				return err
 			}
-			dbPath := filepath.Join(animaPath, "anima.db")
-			configPath := filepath.Join(animaPath, "config.json")
-			cfg, err := config.New(configPath)
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
-			location, err := cfg.Get("location")
+
+			// 2. Get location from the retrieved config
+			location, err := services.Config.Get("location")
 			if err != nil {
 				if errors.Is(err, config.ErrKeyNotFound) {
 					location = ""
@@ -40,18 +32,10 @@ then opens it in your default text editor for editing.`,
 					return fmt.Errorf("failed to get location from config: %w", err)
 				}
 			}
-			store, err := storage.New(dbPath)
-			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
-			}
-			defer store.Close()
 
-			// --- Call Shared Logic ---
-			// This is the only part that is specific to "today"
-			return runJournalLogic(store, location, time.Now())
+			// 3. Call the shared logic with today's date
+			return runJournalLogic(services.Store, location, time.Now())
 		},
 	}
-
 	return cmd
 }
-

@@ -1,31 +1,47 @@
-RunE: func(cmd *cobra.Command, args []string) error {
-			// --- Setup ---
-			animaPath, err := GetAnimaPath()
+func RootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  "anima [command] [flags]",
+		Long: animaArt + `
+This is a command-line tool that serves you as a simple personal journal. 
+You can write your diary entries, and they will be saved securely in a JSON file on your local device.
+The more you write, the better you and Anima will get to know yourself.`,
+		SilenceUsage: true,
+
+		// --- THIS IS THE NEW LOGIC ---
+		// PersistentPreRunE runs before any subcommand.
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Initialize services and get a new context with services embedded
+			ctx, err := initServices(cmd.Context())
 			if err != nil {
 				return err
 			}
-			dbPath := filepath.Join(animaPath, "anima.db")
-			configPath := filepath.Join(animaPath, "config.json")
-			cfg, err := config.New(configPath)
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
-			location, err := cfg.Get("location")
-			if err != nil {
-				if errors.Is(err, config.ErrKeyNotFound) {
-					location = ""
-					fmt.Println("Location not set. Use 'anima config set location \"city, country\"' to set it.")
-				} else {
-					return fmt.Errorf("failed to get location from config: %w", err)
-				}
-			}
-			store, err := storage.New(dbPath)
-			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
-			}
-			defer store.Close()
-
-			// --- Call Shared Logic ---
-			// This is the only part that is specific to "today"
-			return runJournalLogic(store, location, time.Now())
+			// Set the command's context to the new one
+			cmd.SetContext(ctx)
+			return nil
 		},
+		// PersistentPostRunE runs *after* any subcommand.
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			// Retrieve the store from the context and close it.
+			if store, ok := cmd.Context().Value(dbStoreKey).(*storage.Storage); ok && store != nil {
+				store.Close()
+			}
+			return nil
+		},
+		// --- END OF NEW LOGIC ---
+	}
+
+	cmd.CompletionOptions.DisableDefaultCmd = true
+
+	cmd.AddCommand(ConfigCmd())
+	cmd.AddCommand(TodayCmd())
+	cmd.AddCommand(YesterdayCmd())
+	cmd.AddCommand(DateCmd())
+
+	return cmd
+}
+
+func Execute() {
+	if err := RootCmd().Execute(); err != nil {
+		os.Exit(1)
+	}
+}

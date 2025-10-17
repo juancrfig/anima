@@ -1,15 +1,11 @@
-// internal/cli/yesterday.go
 package cli
 
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"anima/internal/config"
-	"anima/internal/storage"
-
 	"github.com/spf13/cobra"
 )
 
@@ -19,18 +15,14 @@ func YesterdayCmd() *cobra.Command {
 		Short: "Create or open yesterday's journal entry.",
 		Long:  `Creates a new journal entry for yesterday if one doesn't exist, then opens it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// --- Setup (identical to today.go) ---
-			animaPath, err := GetAnimaPath()
+			// 1. Retrieve services from the context
+			services, err := GetServices(cmd.Context())
 			if err != nil {
 				return err
 			}
-			dbPath := filepath.Join(animaPath, "anima.db")
-			configPath := filepath.Join(animaPath, "config.json")
-			cfg, err := config.New(configPath)
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
-			location, err := cfg.Get("location")
+
+			// 2. Get location from the retrieved config
+			location, err := services.Config.Get("location")
 			if err != nil {
 				if errors.Is(err, config.ErrKeyNotFound) {
 					location = ""
@@ -38,15 +30,10 @@ func YesterdayCmd() *cobra.Command {
 					return fmt.Errorf("failed to get location from config: %w", err)
 				}
 			}
-			store, err := storage.New(dbPath)
-			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
-			}
-			defer store.Close()
 
-			// --- Call Shared Logic ---
+			// 3. Call the shared logic with yesterday's date
 			yesterday := time.Now().Add(-24 * time.Hour)
-			return runJournalLogic(store, location, yesterday)
+			return runJournalLogic(services.Store, location, yesterday)
 		},
 	}
 	return cmd

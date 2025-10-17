@@ -1,15 +1,11 @@
-// internal/cli/date.go
 package cli
 
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"anima/internal/config"
-	"anima/internal/storage"
-
 	"github.com/spf13/cobra"
 )
 
@@ -18,8 +14,7 @@ func DateCmd() *cobra.Command {
 		Use:   "date [YYYY-MM-DD]",
 		Short: "Create or open a journal entry for a specific date.",
 		Long:  `Creates or opens a journal entry for the date specified in YYYY-MM-DD format.`,
-		// We enforce that exactly one argument must be provided.
-		Args: cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 1. Parse the date argument
 			dateStr := args[0]
@@ -28,18 +23,14 @@ func DateCmd() *cobra.Command {
 				return fmt.Errorf("invalid date format: %q. Please use YYYY-MM-DD", dateStr)
 			}
 
-			// 2. Setup (This is identical to our other commands)
-			animaPath, err := GetAnimaPath()
+			// 2. Retrieve services from the context
+			services, err := GetServices(cmd.Context())
 			if err != nil {
 				return err
 			}
-			dbPath := filepath.Join(animaPath, "anima.db")
-			configPath := filepath.Join(animaPath, "config.json")
-			cfg, err := config.New(configPath)
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
-			location, err := cfg.Get("location")
+
+			// 3. Get location from the retrieved config
+			location, err := services.Config.Get("location")
 			if err != nil {
 				if errors.Is(err, config.ErrKeyNotFound) {
 					location = ""
@@ -47,14 +38,9 @@ func DateCmd() *cobra.Command {
 					return fmt.Errorf("failed to get location from config: %w", err)
 				}
 			}
-			store, err := storage.New(dbPath)
-			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
-			}
-			defer store.Close()
 
-			// 3. Call the shared logic with the parsed date
-			return runJournalLogic(store, location, parsedDate)
+			// 4. Call the shared logic with the parsed date
+			return runJournalLogic(services.Store, location, parsedDate)
 		},
 	}
 	return cmd
