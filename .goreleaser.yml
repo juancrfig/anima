@@ -16,7 +16,11 @@ builds:
       - -s -w
 
 archives:
-  - format: tar.gz
+  - 
+    format_overrides:
+      - goos: windows
+        format: zip
+
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm}}v{{ .Arm }}{{ end }}
     files:
