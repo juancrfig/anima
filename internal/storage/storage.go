@@ -1,4 +1,3 @@
-// internal/storage/storage.go
 package storage
 
 import (
@@ -21,6 +20,12 @@ type Entry struct {
 type Storage struct {
 	db *sql.DB
 }
+
+
+func (s *Storage) DB() *sql.DB {
+    return s.db
+}
+
 
 // New initializes the database connection and creates necessary tables.
 func New(dbPath string) (*Storage, error) {
@@ -53,16 +58,16 @@ func (s *Storage) Close() {
 }
 
 // CreateEntry inserts a new journal entry into the database.
-func (s *Storage) CreateEntry(content, location string) (*Entry, error) {
-	now := time.Now().UTC()
-    today := now.Truncate(24 * time.Hour)
+func (s *Storage) CreateEntry(content, location string, entryDate time.Time) (*Entry, error) {
+	now := time.Now().UTC().Truncate(time.Minute)
+    dateOnly := entryDate.UTC().Truncate(24 * time.Hour)
 	stmt, err := s.db.Prepare("INSERT INTO entries(content, location, created_at, date) VALUES(?, ?, ?, ?)")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(content, location, now, today)
+	res, err := stmt.Exec(content, location, now, dateOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +82,7 @@ func (s *Storage) CreateEntry(content, location string) (*Entry, error) {
 		Content:   content,
 		Location:  location,
 		CreatedAt: now.Truncate(time.Second),
-        Date: today,
+        Date: dateOnly,
 	}, nil
 }
 
@@ -92,13 +97,13 @@ func (s *Storage) GetEntry(id int64) (*Entry, error) {
 		return nil, err
 	}
     // Truncate to handle potential database precision differences
-    entry.CreatedAt = entry.CreatedAt.Truncate(time.Second)
+    entry.CreatedAt = entry.CreatedAt.UTC().Truncate(time.Minute)
     return &entry, nil
 }
 
 func (s *Storage) GetEntryByDate(date time.Time) (*Entry, error) {
-	// Ensure we are only comparing the date part
-	targetDate := date.Truncate(24 * time.Hour)
+	// Standardize the lookup date to UTC before truncating
+	targetDate := date.UTC().Truncate(24 * time.Hour)
 	row := s.db.QueryRow("SELECT id, content, location, created_at, date FROM entries WHERE date = ?", targetDate)
 
 	var entry Entry
@@ -106,7 +111,7 @@ func (s *Storage) GetEntryByDate(date time.Time) (*Entry, error) {
 	if err != nil {
 		return nil, err // This will be sql.ErrNoRows if not found
 	}
-	entry.CreatedAt = entry.CreatedAt.Truncate(time.Second)
+	entry.CreatedAt = entry.CreatedAt.UTC().Truncate(time.Minute)
 	return &entry, nil
 }
 
@@ -122,3 +127,22 @@ func (s *Storage) UpdateEntryContent(id int64, content string) error {
 	return err
 }
 
+
+func (s *Storage) GetOrCreateEntryByDate(date time.Time, location string) (*Entry, bool, error) {
+    targetDate := date.Truncate(24 * time.Hour)
+
+    entry, err := s.GetEntryByDate(targetDate)
+    if err == nil {
+        return entry, false, nil
+    }
+
+    if err != sql.ErrNoRows {
+        return nil, false, err
+    }
+
+    newEntry, err := s.CreateEntry("", location, targetDate)
+    if err != nil {
+        return nil, false, err
+    }
+    return newEntry, true, nil
+}

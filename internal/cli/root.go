@@ -42,6 +42,7 @@ func RootCmd() *cobra.Command {
 
     cmd.CompletionOptions.DisableDefaultCmd = true
 
+    cmd.AddCommand(ConfigCmd())
     cmd.AddCommand(TodayCmd())
 
     return cmd

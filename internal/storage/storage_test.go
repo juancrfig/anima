@@ -12,6 +12,39 @@ import (
 )
 
 
+
+func TestGetOrCreateEntryByDate(t *testing.T) {
+	dbPath := t.TempDir() + "/test_anima.db"
+	storage, err := New(dbPath)
+	require.NoError(t, err, "Failed to initialize storage")
+	defer storage.Close()
+
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	location := "Test City"
+
+	// --- 1. First call: Entry should be created ---
+	entry1, created, err := storage.GetOrCreateEntryByDate(today, location)
+	require.NoError(t, err)
+	assert.True(t, created, "The entry should have been created on the first call")
+	assert.NotZero(t, entry1.ID)
+	assert.Equal(t, "", entry1.Content, "A new entry should have empty content")
+	assert.Equal(t, location, entry1.Location)
+	assert.Equal(t, today, entry1.Date.Truncate(24*time.Hour))
+
+	// --- 2. Second call: Existing entry should be retrieved ---
+	entry2, created, err := storage.GetOrCreateEntryByDate(today, location)
+	require.NoError(t, err)
+	assert.False(t, created, "The entry should not be created on the second call")
+	assert.Equal(t, entry1.ID, entry2.ID, "The same entry ID should be returned")
+
+	// --- 3. Verification: Ensure only one row exists in the DB ---
+	var count int
+	err = storage.db.QueryRow("SELECT COUNT(id) FROM entries WHERE date = ?", today).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "There should be exactly one entry for the given date")
+}
+
+
 func TestCreateAndGetEntry(t *testing.T) {
 	
     dbPath := "test_anima.db"
@@ -31,7 +64,7 @@ func TestCreateAndGetEntry(t *testing.T) {
 			Location:  "Cucuta, Colombia",
 		}
 
-		createdEntry, err := storage.CreateEntry(entryToCreate.Content, entryToCreate.Location)
+		createdEntry, err := storage.CreateEntry(entryToCreate.Content, entryToCreate.Location, now)
 		require.NoError(t, err, "CreateEntry should not return an error")
 
 		retrievedEntry, err := storage.GetEntry(createdEntry.ID)
@@ -41,7 +74,7 @@ func TestCreateAndGetEntry(t *testing.T) {
 		assert.Equal(t, createdEntry.ID, retrievedEntry.ID, "Retrieved ID should match created ID")
 		assert.Equal(t, "This is a test journal entry.", retrievedEntry.Content, "Content should match")
 		assert.Equal(t, "Cucuta, Colombia", retrievedEntry.Location, "Location should match")
-		assert.Equal(t, now, retrievedEntry.CreatedAt, "Timestamp should match")
+		assert.Equal(t, now.UTC().Truncate(time.Minute), retrievedEntry.CreatedAt, "Timestamp should match")
 	})
 }
 
