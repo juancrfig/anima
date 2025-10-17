@@ -1,49 +1,44 @@
 package cli
 
 import (
-    "anima/internal/app/journal"
-    "fmt"
-    "os"
-    "path/filepath"
-    "time"
-    "github.com/spf13/cobra"
+	"fmt"
+	"path/filepath"
+	"time"
+
+	"github.com/spf13/cobra"
 )
 
 
-var todayCmd = &cobra.Command {
-    Use: "today",
-    Short: "Open or create today's journal entry",
-    Long: `
-    This command opens the journal entry for the current date.
-    If an entry doesn't exist, it creates a new one.`,
-    Run: func(cmd *cobra.Command, args []string) {
-        homeDir, err := os.UserHomeDir()
-        if err != nil {
-            fmt.Printf("Error: could not find home directory: %v\n", err)
-            os.Exit(1)
-        }
-        journalDir := filepath.Join(homeDir, ".anima", "entries")
+func TodayCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "today",
+		Short: "Create or open today's journal entry.",
+		Long: `Creates a new journal entry for the current date if one doesn't exist,
+then opens it in your default text editor.`,
+		// Use RunE to handle errors returned by our functions.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			animaPath, err := GetAnimaPath()
+			if err != nil {
+				return err
+			}
 
-        // Ensure the directory exists
-        if err := os.MkdirAll(journalDir, 0755); err != nil {
-            fmt.Printf("Error: could not create journal directory: %v\n", err)
-            os.Exit(1)
-        }
+			entriesDir := filepath.Join(animaPath, "entries")
+			todayFilename := time.Now().Format("2006-01-02") + ".md"
+			entryPath := filepath.Join(entriesDir, todayFilename)
 
-        entryPath, err := journal.GetOrCreateEntry(journalDir, time.Now())
-        if err != nil {
-            fmt.Printf("Error: could not get or create journal entry: %v\n", err)
-            os.Exit(1)
-        }
+			
+			if err := CreateFileIfNotExists(entryPath); err != nil {
+				return err
+			}
 
-        if err := openInEditor(entryPath); err != nil {
-            fmt.Printf("Error: could not open file in editor: %v\n", err)
-            fmt.Printf("Your entry is located at: %s\n", entryPath)
-            os.Exit(1)
-        }
-    },
-}
+			fmt.Printf("Opening journal entry: %s\n", entryPath)
+			if err := OpenFileInEditor(entryPath); err != nil {
+				// Provide a helpful fallback message if the editor fails.
+				return fmt.Errorf("failed to open editor: %w. Your entry is at: %s", err, entryPath)
+			}
 
-func init() {
-    rootCmd.AddCommand(todayCmd)
+			return nil
+		},
+	}
+	return cmd
 }

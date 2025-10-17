@@ -1,12 +1,25 @@
 package cli
 
 import (
-    "os"
+    "bytes"
+    "strings"
+    "testing"
     "github.com/spf13/cobra"
+    "github.com/stretchr/testify/assert"
 )
 
 
-const animaArt = `
+func mockTodayCmd() *cobra.Command {
+    return &cobra.Command {
+        Use: "today",
+        Short: "Open today's journal entry",
+        Run: func(cmd *cobra.Command, args []string) {},
+    }
+}
+
+
+func TestRootCmdHelpOutput(t *testing.T) {
+    const expectedArt = `
 
                                       =%@@@@@@@@@@@@@@@*.                                   
                                  .@@@@@@@@@@@@@@@@@@@@@@@@@@=                               
@@ -45,24 +58,16 @@ const animaArt = `
                                       -%@@@@@@@@@@@@@@@*.
 `
 
+    cmd := RootCmd()
+    cmd.AddCommand(mockTodayCmd())
 
-func RootCmd() *cobra.Command {
-    cmd := &cobra.Command {
-            Use: "anima [command] [flags]",
-            Long: animaArt + `
-    This is a command-line tool that serves you as a simple personal journal. 
-    You can write your diary entries, and they will be saved securely in a JSON file on your local device.
-    The more you write, the better you and Anima will get to know yourself.`,
-            SilenceUsage: true,
-    }
+    outputBuffer := new(bytes.Buffer)
+    cmd.SetOut(outputBuffer)
+    cmd.SetArgs([]string{"--help"})
 
-    cmd.AddCommand(TodayCmd())
+    err := cmd.Execute()
 
-    return cmd
-}
-
-func Execute() {
-    if err := RootCmd().Execute(); err != nil {
-        os.Exit(1)
-    }
+    output := outputBuffer.String()
+    assert.NoError(t, err, "Executing --help should not return an error")
+    assert.True(t, strings.Contains(output, expectedArt), "FAIL: Help output must contain the Anima ASCII art")
 }
