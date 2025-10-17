@@ -44,6 +44,7 @@ func RootCmd() *cobra.Command {
 
     cmd.AddCommand(ConfigCmd())
     cmd.AddCommand(TodayCmd())
+    cmd.AddCommand(YesterdayCmd())
 
     return cmd
 }
