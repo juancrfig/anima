@@ -1,4 +1,3 @@
-// internal/config/config.go
 package config
 
 import (
@@ -6,11 +5,26 @@ import (
 	"errors"
 	"fmt"
 	"os"
+    "strconv"
 	"sync"
+    "time"
+    "anima/internal/crypto"
 )
+
 
 // ErrKeyNotFound is returned when a key is not found in the configuration.
 var ErrKeyNotFound = errors.New("key not found")
+
+const (
+    keyDBPath          = "db_path"
+    keySessionDuration = "security.session_duration_minutes"
+    keyCryptoTime      = "security.crypto.time"
+    keyCryptoMemory    = "securiy.crypto.memory_kib"
+    keyCryptoThreads   = "security.crypto.threads"
+    keyCryptoSaltLen   = "security.crypto.salt_len"
+    keyCryptoKeyLen    = "security.crypto.key_len"
+)
+
 
 // Config manages Anima's configuration settings.
 type Config struct {
@@ -86,4 +100,113 @@ func (c *Config) Set(key, value string) error {
 		return fmt.Errorf("could not save config file: %w", err)
 	}
 	return nil
+}
+
+
+// getWithDefault fetches a key, returning a default if not found.
+// This helper does not need to lock, as its callers will.
+func (c *Config) getWithDefault(key, defaultValue string) string {
+	value, ok := c.data[key]
+	if !ok {
+		return defaultValue
+	}
+	return value
+}
+
+// parseInt parses a string to uint64.
+func parseInt(s string, bitSize int) (uint64, error) {
+	val, err := strconv.ParseUint(s, 10, bitSize)
+	if err != nil {
+		return 0, fmt.Errorf("could not parse value %q: %w", s, err)
+	}
+	return val, nil
+}
+
+
+// DBPath returns the database path.
+// This is a required field and has no default.
+func (c *Config) DBPath() (string, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	val, ok := c.data[keyDBPath]
+	if !ok {
+		return "", fmt.Errorf("%w: %s (this is a required field)", ErrKeyNotFound, keyDBPath)
+	}
+	return val, nil
+}
+
+// SessionDuration fetches and parses the session duration.
+// Defaults to 0 (non-expiring) if not set.
+func (c *Config) SessionDuration() (time.Duration, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// Default to 0 minutes (non-expiring)
+	valStr := c.getWithDefault(keySessionDuration, "0")
+
+	minutes, err := parseInt(valStr, 64) // time.Duration is int64
+	if err != nil {
+		return 0, fmt.Errorf("invalid session duration: %w", err)
+	}
+
+	return time.Duration(minutes) * time.Minute, nil
+}
+
+// CryptoParams fetches and parses all crypto settings.
+// It applies safe defaults for any missing values.
+func (c *Config) CryptoParams() (*crypto.Params, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// 1. Get all values, applying defaults for each
+	// These defaults are our OWASP recommendations
+	timeStr := c.getWithDefault(keyCryptoTime, "3")
+	memStr := c.getWithDefault(keyCryptoMemory, "65536")
+	threadsStr := c.getWithDefault(keyCryptoThreads, "1")
+	saltLenStr := c.getWithDefault(keyCryptoSaltLen, "16")
+	keyLenStr := c.getWithDefault(keyCryptoKeyLen, "32")
+
+	// 2. Parse all values
+	timeVal, err := parseInt(timeStr, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	memVal, err := parseInt(memStr, 32)
+	if err != nil {
+		return nil, err
+	}
+
+	threadsVal, err := parseInt(threadsStr, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	saltLenVal, err := parseInt(saltLenStr, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	keyLenVal, err := parseInt(keyLenStr, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Construct the struct
+	params := &crypto.Params{
+		Time:    uint32(timeVal),
+		Memory:  uint32(memVal),
+		Threads: uint8(threadsVal),
+		SaltLen: uint8(saltLenVal),
+		KeyLen:  uint8(keyLenVal),
+	}
+
+	return params, nil
+}
+
+// SetDBPath provides a typed helper for setting the DB path.
+// This is safer than cfg.Set("db_path", ...).
+func (c *Config) SetDBPath(path string) error {
+	return c.Set(keyDBPath, path)
 }
