@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+    "os/signal"
 	"path/filepath"
 	"runtime"
+    "syscall"
+
+    "golang.org/x/term"
 )
 
 // GetAnimaPath returns the absolute path to the ~/.anima directory.
@@ -39,7 +43,7 @@ func CreateFileIfNotExists(path string) error {
 }
 
 // OpenFileInEditor opens the specified file path in the user's default editor.
-func OpenFileInEditor(filePath string) error {
+var OpenFileInEditor = func(filePath string) error {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		// Provide sensible defaults for different OSes.
@@ -62,4 +66,44 @@ func OpenFileInEditor(filePath string) error {
 	cmd.Stderr = os.Stderr
 
 	return cmd.Run()
+}
+
+
+func ReadPassword(prompt string) ([]byte, error) {
+	// 1. Get the original terminal state so we can restore it.
+	oldState, err := term.GetState(int(syscall.Stdin))
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Set up a channel to listen for interrupt signals (Ctrl+C).
+	sigch := make(chan os.Signal, 1)
+	signal.Notify(sigch, os.Interrupt)
+
+	// 3. Start a goroutine that waits for the signal.
+	go func() {
+		<-sigch // Wait for a signal
+		// When the signal arrives, *force* restore the terminal and exit.
+		term.Restore(int(syscall.Stdin), oldState)
+		fmt.Println("\nOperation cancelled.")
+		os.Exit(1)
+	}()
+
+	// 4. Now, run the password prompt.
+	fmt.Print(prompt)
+	password, err := term.ReadPassword(int(syscall.Stdin))
+
+	// 5. If we finished (no interrupt), stop listening for the signal.
+	// This prevents a leaked goroutine.
+	signal.Stop(sigch)
+	close(sigch)
+
+	// 6. term.ReadPassword already restores state on normal exit,
+	// but our handler (step 3) catches the interrupt.
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println()
+	return password, nil
 }

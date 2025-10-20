@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+    "anima/internal/auth"
 	"anima/internal/config"
 	"anima/internal/storage"
 )
@@ -22,6 +23,8 @@ const (
 type Services struct {
 	Store  *storage.Storage
 	Config *config.Config
+    Auth *auth.Manager
+    KeyManager *auth.KeyManager
 }
 
 // initServices performs the setup logic that was duplicated in every command.
@@ -40,7 +43,16 @@ func initServices(ctx context.Context) (context.Context, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	store, err := storage.New(dbPath)
+    authMgr := auth.New()
+
+    cryptoParams, err := cfg.CryptoParams()
+    if err != nil {
+        return nil, fmt.Errorf("Could not load crypto params:  %w", err)
+    }
+
+    keyMgr := auth.NewKeyManager(cryptoParams)
+
+	store, err := storage.New(dbPath, cfg, authMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -49,6 +61,8 @@ func initServices(ctx context.Context) (context.Context, error) {
 	services := &Services{
 		Store:  store,
 		Config: cfg,
+        Auth: authMgr,
+        KeyManager: keyMgr,
 	}
 
 	// Store the services struct in the context

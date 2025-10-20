@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+    "encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -23,6 +24,11 @@ const (
     keyCryptoThreads   = "security.crypto.threads"
     keyCryptoSaltLen   = "security.crypto.salt_len"
     keyCryptoKeyLen    = "security.crypto.key_len"
+
+    // Stores the master data key, encrypted by the user's password
+    keyEncryptedMaster = "security.vault.master_key"
+    // Stores the master data key, encrypted by the recovery phrase
+    keyEncryptedRecovery = "security.vault.recovery_key"
 )
 
 
@@ -209,4 +215,57 @@ func (c *Config) CryptoParams() (*crypto.Params, error) {
 // This is safer than cfg.Set("db_path", ...).
 func (c *Config) SetDBPath(path string) error {
 	return c.Set(keyDBPath, path)
+}
+
+
+// setBytes stores raw bytes in the config as a Base64-encoded string.
+func (c *Config) setBytes(key string, data []byte) error {
+	encodedData := base64.StdEncoding.EncodeToString(data)
+	return c.Set(key, encodedData)
+}
+
+// getBytes retrieves Base64-encoded data and decodes it back into raw bytes.
+func (c *Config) getBytes(key string) ([]byte, error) {
+	encodedData, err := c.Get(key)
+	if err != nil {
+		return nil, err // This will be ErrKeyNotFound if it doesn't exist
+	}
+	
+	decodedData, err := base64.StdEncoding.DecodeString(encodedData)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode config value for key %s: %w", key, err)
+	}
+	return decodedData, nil
+}
+
+// SetEncryptedMasterKey stores the password-encrypted master key.
+func (c *Config) SetEncryptedMasterKey(keyData []byte) error {
+	return c.setBytes(keyEncryptedMaster, keyData)
+}
+
+// GetEncryptedMasterKey retrieves the password-encrypted master key.
+func (c *Config) GetEncryptedMasterKey() ([]byte, error) {
+	return c.getBytes(keyEncryptedMaster)
+}
+
+// SetEncryptedRecoveryKey stores the recovery-phrase-encrypted master key.
+func (c *Config) SetEncryptedRecoveryKey(keyData []byte) error {
+	return c.setBytes(keyEncryptedRecovery, keyData)
+}
+
+// GetEncryptedRecoveryKey retrieves the recovery-phrase-encrypted master key.
+func (c *Config) GetEncryptedRecoveryKey() ([]byte, error) {
+	return c.getBytes(keyEncryptedRecovery)
+}
+
+// IsSetup checks if the Anima vault has been initialized.
+// This is true only if *both* keys are present.
+func (c *Config) IsSetup() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	_, masterOK := c.data[keyEncryptedMaster]
+	_, recoveryOK := c.data[keyEncryptedRecovery]
+
+	return masterOK && recoveryOK
 }

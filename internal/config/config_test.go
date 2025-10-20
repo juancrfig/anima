@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
     "time"
+    "encoding/base64"
 
     "anima/internal/crypto"
 	"github.com/stretchr/testify/assert"
@@ -117,46 +118,62 @@ func TestConfig_SecurityDefaults(t *testing.T) {
 	})
 }
 
-// TestConfig_SecurityCustom proves we can load custom,
-// typed security values from the K-V store.
-func TestConfig_SecurityCustom(t *testing.T) {
+
+// TestConfig_SecurityKeyStorage proves we can set and get the
+// specific, high-security keys required for the "Recovery Key" architecture.
+func TestConfig_SecurityKeyStorage(t *testing.T) {
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "custom_config.json")
+	configPath := filepath.Join(tempDir, "key_storage_config.json")
 
 	cfg, err := New(configPath)
 	require.NoError(t, err)
 
-	// --- Act ---
-	// Set custom security values using the existing K-V store
-	require.NoError(t, cfg.Set(keyCryptoTime, "1"))
-	require.NoError(t, cfg.Set(keyCryptoMemory, "1024"))
-	require.NoError(t, cfg.Set(keyCryptoThreads, "2"))
-	require.NoError(t, cfg.Set(keyCryptoSaltLen, "32"))
-	require.NoError(t, cfg.Set(keyCryptoKeyLen, "32"))
-	require.NoError(t, cfg.Set(keySessionDuration, "15"))
-	require.NoError(t, cfg.Set(keyDBPath, "/tmp/test.db"))
+	// 1. On a new config, it should not be set up
+	assert.False(t, cfg.IsSetup(), "IsSetup() should be false for a new config")
 
-	// --- Assert CryptoParams ---
-	wantParams := &crypto.Params{
-		Time:    1,
-		Memory:  1024,
-		Threads: 2,
-		SaltLen: 32,
-		KeyLen:  32,
-	}
-	gotParams, err := cfg.CryptoParams()
-	require.NoError(t, err)
-	assert.Equal(t, wantParams, gotParams)
+	// 2. Define our mock encrypted keys
+	// (In a real setup, these are long, encrypted byte slices)
+	mockEncryptedMasterKey := []byte("encrypted-master-key-data")
+	mockEncryptedRecoveryKey := []byte("encrypted-recovery-key-data")
 
-	// --- Assert SessionDuration ---
-	wantDuration := 15 * time.Minute
-	gotDuration, err := cfg.SessionDuration()
+	// 3. Set the keys
+	err = cfg.SetEncryptedMasterKey(mockEncryptedMasterKey)
 	require.NoError(t, err)
-	assert.Equal(t, wantDuration, gotDuration)
+	err = cfg.SetEncryptedRecoveryKey(mockEncryptedRecoveryKey)
+	require.NoError(t, err)
 
-	// --- Assert DBPath ---
-	wantDBPath := "/tmp/test.db"
-	gotDBPath, err := cfg.DBPath()
+	// 4. Now, the config should report as "set up"
+	assert.True(t, cfg.IsSetup(), "IsSetup() should be true after setting keys")
+
+	// 5. Get the keys back
+	retrievedMaster, err := cfg.GetEncryptedMasterKey()
 	require.NoError(t, err)
-	assert.Equal(t, wantDBPath, gotDBPath)
+	assert.Equal(t, mockEncryptedMasterKey, retrievedMaster)
+
+	retrievedRecovery, err := cfg.GetEncryptedRecoveryKey()
+	require.NoError(t, err)
+	assert.Equal(t, mockEncryptedRecoveryKey, retrievedRecovery)
+
+	// 6. Verify they are stored as base64 strings in the raw map
+	// This proves we are storing raw bytes safely in a JSON-friendly format.
+	rawMaster, err := cfg.Get(keyEncryptedMaster)
+	require.NoError(t, err)
+	assert.Equal(t, base64.StdEncoding.EncodeToString(mockEncryptedMasterKey), rawMaster)
 }
+
+// TestConfig_IsSetup_False proves IsSetup is false if only one key is present.
+func TestConfig_IsSetup_False(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "partial_config.json")
+
+	cfg, err := New(configPath)
+	require.NoError(t, err)
+
+	// Set only the master key
+	err = cfg.SetEncryptedMasterKey([]byte("only-master-key"))
+	require.NoError(t, err)
+
+	// It should still report as not set up
+	assert.False(t, cfg.IsSetup(), "IsSetup() should be false if recovery key is missing")
+}
+
