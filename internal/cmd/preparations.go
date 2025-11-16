@@ -20,7 +20,7 @@ func ensureAnimaDir(cmd *cobra.Command) error {
 		return err
 	}
 
-	ctx := context.WithValue(cmd.Context(), pathKey, p)
+	ctx := context.WithValue(cmd.Context(), entriesPathKey, p)
 	cmd.SetContext(ctx)
 
 	return nil

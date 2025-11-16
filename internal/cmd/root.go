@@ -1,20 +1,28 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
 )
 
+type ctxKey string
+const entriesPathKey ctxKey = "entriesPath"
+
 var rootCmd = &cobra.Command{
-	Use: "anima",
+	Use: "anima [date]",
 	Short: "Anima is a personal journal. Store your thoughts and experiences safely!",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return EnsureAnimaDir()
+		return ensureAnimaDir(cmd)
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Hello! I'm Anima.")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			initialGreeting(nil)
+			return nil
+		}
+		date := args[0]
+		openEntry(cmd, date)
+		return nil
 	},
 }
 

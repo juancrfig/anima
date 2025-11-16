@@ -4,23 +4,43 @@ import (
 	"os"
 	"errors"
 	"os/exec"
+	"path/filepath"
+	"fmt"
+	"io"
+
+	"github.com/spf13/cobra"
 )
 
-func openEntry(entry string) error {
+func openEntry(cmd *cobra.Command, date string) error {
 	textEditor := os.Getenv("EDITOR")
 	if textEditor == "" {
 		return errors.New("No text editor detected") 
 	}
 
-	cmd := exec.Command(textEditor, entry)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	ctx := cmd.Context()
+	entriesPath := ctx.Value(entriesPathKey)
 
-	err := cmd.Run()
-	if err != nil {
-		return err
+	if s, ok := entriesPath.(string); ok {
+
+		entryPath := filepath.Join(s, date + ".md")
+
+		editorCmd := exec.Command(textEditor, entryPath)
+		editorCmd.Stdin = os.Stdin
+		editorCmd.Stdout = os.Stdout
+		editorCmd.Stderr = os.Stderr
+
+		err := editorCmd.Run()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func initialGreeting(w io.Writer) {
+	if w == nil {
+		w = os.Stdout
 	}
 
-	return nil
+	fmt.Fprintf(w, "Hello! I am Anima.")
 }
