@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"log"
-	"io"
 	"fmt"
-	"os"
+	"log"
 
 	"github.com/spf13/cobra"
 )
@@ -13,13 +11,10 @@ var rootCmd = &cobra.Command{
 	Use: "anima",
 	Short: "Anima is a personal journal. Store your thoughts and experiences safely!",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if err := ensureAnimaDir(); err != nil {
-			return err
-		}
-		return nil
+		return EnsureAnimaDir()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		InitialGreeting(nil)
+		fmt.Printf("Hello! I'm Anima.")
 	},
 }
 
@@ -31,12 +26,4 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().StringP("config", "c", "", "config file path")
-}
-
-
-func InitialGreeting(w io.Writer) {
-	if w == nil {
-		w = os.Stdout
-	}
-	fmt.Fprintf(w, "Hello! I'm Anima.")
 }

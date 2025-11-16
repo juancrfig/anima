@@ -3,21 +3,25 @@ package cmd
 import (
 	"path/filepath"
 	"os"
-	"errors"
+	"context"
+
+	"github.com/spf13/cobra"
 )
 
-func ensureAnimaDir() error {
+func ensureAnimaDir(cmd *cobra.Command) error {
  	homePath, err := os.UserHomeDir()
 	if err != nil {
-		return errors.New("Error getting home path")
+		return err
 	}
 
-	animaDirPath := filepath.Join(homePath, ".anima", "entries")
+	p := filepath.Join(homePath, ".anima", "entries")
 	
-	err = os.MkdirAll(animaDirPath, 0700)
-	if err != nil {
-		return errors.New("Error creating the anima directory")
+	if err := os.MkdirAll(p, 0700); err != nil {
+		return err
 	}
+
+	ctx := context.WithValue(cmd.Context(), pathKey, p)
+	cmd.SetContext(ctx)
 
 	return nil
 }
