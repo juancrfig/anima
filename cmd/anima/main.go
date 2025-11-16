@@ -1,10 +1,9 @@
 package main
 
 import (
-    "anima/internal/cli"
+    "github.com/juancrfig/anima/internal/cmd"
 )
 
-
 func main() {
-    cli.Execute()
+    cmd.Execute()
 }	
