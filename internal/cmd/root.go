@@ -5,21 +5,32 @@ import (
 	"io"
 	"fmt"
 	"os"
+	"context"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
+type ctxKey string
+const pathKey ctxKey = "animaPath"
+
 var rootCmd = &cobra.Command{
-	Use: "anima",
+	Use: "anima [date]",
 	Short: "Anima is a personal journal. Store your thoughts and experiences safely!",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if err := ensureAnimaDir(); err != nil {
+		if err := ensureAnimaDir(cmd); err != nil {
 			return err
 		}
 		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		InitialGreeting(nil)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			InitialGreeting(nil)
+			return nil
+		}
+
+		dateArg := args[0]
+		return openEntry(dateArg)
 	},
 }
 
