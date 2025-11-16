@@ -1,0 +1,47 @@
+package journal
+
+import (
+	"path/filepath"
+	"os"
+	"os/exec"
+	"log"
+	"errors"
+)
+
+
+
+type Metadata struct {
+    DateTime string `yaml:"dateTime"`
+    Location string `yaml:"location"`
+		Weather  string `yaml:"weather"`
+}
+
+func OpenEntry(date string) error {
+	textEditor := os.Getenv("EDITOR")
+	if textEditor == "" {
+		return errors.New("No text editor detected") 
+	}
+
+
+	home, _ := os.UserHomeDir()
+	log.Printf("home: %s", home)
+	s := filepath.Join(home,".anima", "entries")
+	entryPath := filepath.Join(s, date + ".md")
+
+	editorCmd := exec.Command(textEditor, entryPath)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
+
+	err := editorCmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createEntry(entryPath string) error {
+	return nil
+}
+
+

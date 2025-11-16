@@ -3,6 +3,8 @@ package cmd
 import (
 	"log"
 
+	"github.com/juancrfig/anima/internal/journal"
+
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +23,7 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 		date := args[0]
-		openEntry(cmd, date)
+		journal.OpenEntry(date)
 		return nil
 	},
 }
