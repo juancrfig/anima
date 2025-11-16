@@ -1,30 +1,13 @@
-project_name: anima
-
-
 builds:
-  -
-    binary: anima
+  - id: anima
     main: ./cmd/anima/main.go
+    binary: anima
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
-      - windows
-      - darwin
     goarch:
       - amd64
-      - arm64
-    ldflags:
-      - -s -w
-
-archives:
-  - 
-    format_overrides:
+    ignore:
+      - goos: darwin
       - goos: windows
-        format: zip
-
-    name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm}}v{{ .Arm }}{{ end }}
-    files:
-      - README.md
-
-checksum:
-  name_template: 'checksums.txt'
