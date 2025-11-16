@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"log"
+	"time"
+	"errors"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -22,15 +23,17 @@ var rootCmd = &cobra.Command{
 			initialGreeting(nil)
 			return nil
 		}
-		date := args[0]
-		journal.OpenEntry(date)
+		if _, err := time.Parse("2006-01-02", args[0]); err != nil {
+			return errors.New("Date must be like YYYY-MM-DD and be valid")
+		}
+		journal.OpenEntry(args[0])
 		return nil
 	},
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Panic(err)
+		return
 	}
 }
 

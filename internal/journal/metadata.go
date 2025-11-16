@@ -12,6 +12,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Metadata struct {
+    DateTime string `yaml:"dateTime"`
+    Location string `yaml:"location"`
+		Weather  string `yaml:"weather"`
+}
+
 const locationURL string = "http://ip-api.com/json/?fields=status,message,country,city"
 
 type Location struct {

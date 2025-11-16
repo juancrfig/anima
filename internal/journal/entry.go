@@ -4,17 +4,8 @@ import (
 	"path/filepath"
 	"os"
 	"os/exec"
-	"log"
 	"errors"
 )
-
-
-
-type Metadata struct {
-    DateTime string `yaml:"dateTime"`
-    Location string `yaml:"location"`
-		Weather  string `yaml:"weather"`
-}
 
 func OpenEntry(date string) error {
 	textEditor := os.Getenv("EDITOR")
@@ -22,9 +13,7 @@ func OpenEntry(date string) error {
 		return errors.New("No text editor detected") 
 	}
 
-
 	home, _ := os.UserHomeDir()
-	log.Printf("home: %s", home)
 	s := filepath.Join(home,".anima", "entries")
 	entryPath := filepath.Join(s, date + ".md")
 
