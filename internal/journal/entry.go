@@ -40,8 +40,4 @@ func OpenEntry(date string) error {
 	return nil
 }
 
-func createEntry(entryPath string) error {
-	return nil
-}
-
 
