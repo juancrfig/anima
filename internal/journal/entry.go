@@ -28,5 +28,3 @@ func OpenEntry(date string) (string, error) {
 	}
 	return entryPath, nil
 }
-
-

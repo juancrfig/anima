@@ -5,7 +5,6 @@ import (
 	"errors"
 	"context"
 	"os"
-	"log"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -58,7 +57,15 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		log.Printf("hasFrontmatter: %v", hasFrontmatter)
+
+		if hasFrontmatter {
+			return nil
+		} else {
+			err := journal.AddFrontmatter(f)
+			if err != nil {
+				return err
+			}
+		}
 
 		return nil
 	},

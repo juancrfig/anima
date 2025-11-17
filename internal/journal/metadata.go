@@ -41,6 +41,10 @@ func DetectFrontmatter(r io.Reader) (bool, error) {
 	return false, nil
 }
 
+func AddFrontmatter(r io.Reader) err {
+	return nil
+}
+
 func readMetadataFromFile(absPath string) (Metadata, error) {
     var meta Metadata
 
