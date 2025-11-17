@@ -3,6 +3,9 @@ package cmd
 import (
 	"time"
 	"errors"
+	"context"
+	"os"
+	"log"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -11,6 +14,7 @@ import (
 
 type ctxKey string
 const entriesPathKey ctxKey = "entriesPath"
+const lastOpenedEntry ctxKey = "lastOpenedEntry"
 
 var rootCmd = &cobra.Command{
 	Use: "anima [date]",
@@ -26,7 +30,36 @@ var rootCmd = &cobra.Command{
 		if _, err := time.Parse("2006-01-02", args[0]); err != nil {
 			return errors.New("Date must be like YYYY-MM-DD and be valid")
 		}
-		journal.OpenEntry(args[0])
+		lastEntryPath, err := journal.OpenEntry(args[0])
+		if err != nil {
+			return err
+		}
+
+		ctx := context.WithValue(cmd.Context(), lastOpenedEntry, lastEntryPath)
+		cmd.SetContext(ctx)
+
+		return nil
+	},
+	PostRunE: func(cmd *cobra.Command, args []string) error {
+
+		v := cmd.Context().Value(lastOpenedEntry)
+		path, ok := v.(string) 
+		if !ok {
+			return nil
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		hasFrontmatter, err := journal.DetectFrontmatter(f)
+		if err != nil {
+			return err
+		}
+		log.Printf("hasFrontmatter: %v", hasFrontmatter)
+
 		return nil
 	},
 }

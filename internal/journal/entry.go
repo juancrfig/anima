@@ -7,10 +7,10 @@ import (
 	"errors"
 )
 
-func OpenEntry(date string) error {
+func OpenEntry(date string) (string, error) {
 	textEditor := os.Getenv("EDITOR")
 	if textEditor == "" {
-		return errors.New("No text editor detected") 
+		return "", errors.New("No text editor detected") 
 	}
 
 	home, _ := os.UserHomeDir()
@@ -24,9 +24,9 @@ func OpenEntry(date string) error {
 
 	err := editorCmd.Run()
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return entryPath, nil
 }
 
 

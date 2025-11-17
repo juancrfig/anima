@@ -25,6 +25,22 @@ type Location struct {
 	City    string
 }
 
+func DetectFrontmatter(r io.Reader) (bool, error) {
+	var readingBuf []byte = make([]byte, 3)
+	n, err := r.Read(readingBuf)
+
+	if err == io.EOF {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	if string(readingBuf[:n]) == "---" {
+		return true, nil
+	}
+	return false, nil
+}
+
 func readMetadataFromFile(absPath string) (Metadata, error) {
     var meta Metadata
 
