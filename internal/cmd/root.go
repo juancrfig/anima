@@ -4,7 +4,6 @@ import (
 	"time"
 	"errors"
 	"context"
-	"os"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -40,33 +39,6 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) error {
-
-		v := cmd.Context().Value(lastOpenedEntry)
-		path, ok := v.(string) 
-		if !ok {
-			return nil
-		}
-
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		hasFrontmatter, err := journal.DetectFrontmatter(f)
-		if err != nil {
-			return err
-		}
-
-		if hasFrontmatter {
-			return nil
-		} else {
-			err := journal.AddFrontmatter(f)
-			if err != nil {
-				return err
-			}
-		}
-
 		return nil
 	},
 }
