@@ -3,7 +3,6 @@ package cmd
 import (
 	"time"
 	"errors"
-	"context"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -21,21 +20,35 @@ var rootCmd = &cobra.Command{
 		return ensureAnimaDir(cmd)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+
 		if len(args) == 0 {
 			initialGreeting(nil)
 			return nil
 		}
+
+		if args[0] == "today" {
+			todayDate := time.Now().Format("2006-01-02")
+			err := journal.OpenEntry(todayDate)
+			if err != nil {
+				return err
+			}
+		}
+
+		if args[0] == "yesterday" {
+			yestDate := time.Now().AddDate(0,0,-1).Format("2006-01-02")
+			err := journal.OpenEntry(yestDate)
+			if err != nil {
+				return err
+			}
+		}
+
 		if _, err := time.Parse("2006-01-02", args[0]); err != nil {
 			return errors.New("Date must be like YYYY-MM-DD and be valid")
 		}
-		lastEntryPath, err := journal.OpenEntry(args[0])
+		err := journal.OpenEntry(args[0])
 		if err != nil {
 			return err
 		}
-
-		ctx := context.WithValue(cmd.Context(), lastOpenedEntry, lastEntryPath)
-		cmd.SetContext(ctx)
-
 		return nil
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) error {
