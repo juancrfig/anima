@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"time"
 	"errors"
+	"time"
 
 	"github.com/juancrfig/anima/internal/journal"
 
@@ -10,11 +10,12 @@ import (
 )
 
 type ctxKey string
+
 const entriesPathKey ctxKey = "entriesPath"
 const lastOpenedEntry ctxKey = "lastOpenedEntry"
 
 var rootCmd = &cobra.Command{
-	Use: "anima [date]",
+	Use:   "anima [date]",
 	Short: "Anima is a personal journal. Store your thoughts and experiences safely!",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return ensureAnimaDir(cmd)
@@ -26,28 +27,29 @@ var rootCmd = &cobra.Command{
 			return nil
 		}
 
-		if args[0] == "today" {
+		switch args[0] {
+		case "today":
 			todayDate := time.Now().Format("2006-01-02")
 			err := journal.OpenEntry(todayDate)
 			if err != nil {
 				return err
 			}
-		}
 
-		if args[0] == "yesterday" {
-			yestDate := time.Now().AddDate(0,0,-1).Format("2006-01-02")
+		case "yesterday":
+			yestDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 			err := journal.OpenEntry(yestDate)
 			if err != nil {
 				return err
 			}
-		}
 
-		if _, err := time.Parse("2006-01-02", args[0]); err != nil {
-			return errors.New("Date must be like YYYY-MM-DD and be valid")
-		}
-		err := journal.OpenEntry(args[0])
-		if err != nil {
-			return err
+		default:
+			if _, err := time.Parse("2006-01-02", args[0]); err != nil {
+				return errors.New("Date must be like YYYY-MM-DD and be valid")
+			}
+			err := journal.OpenEntry(args[0])
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	},
